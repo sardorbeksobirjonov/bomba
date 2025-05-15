@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💣 Bombadan Qoch!</title>
+  <!-- Asosiy meta ma'lumotlar -->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="author" content="Sardorbek Sobirjonov" />
+<meta name="description" content="Bombadan qochish o‘yini — 25 ta katak ichida bomba bor yoki yo‘qligini toping! Interaktiv va qiziqarli mini-game!" />
+<meta name="keywords" content="bomb game, mini game, qiziqarli o'yin, html css js o'yin, bombadan qochish, sardor, webstormers" />
+<meta name="robots" content="index, follow" />
+
+<!-- Brauzer va qurilmalar uchun -->
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="theme-color" content="#1f2937" />
+
+<!-- Open Graph - Facebook, Telegram uchun -->
+<meta property="og:title" content="💣 Bombadan Qoch! - Mini Game" />
+<meta property="og:description" content="25 ta katak, 5 ta bomba. Bombani bosmang! O‘yinni hoziroq boshlang!" />
+<meta property="og:image" content="https://example.com/your-thumbnail.jpg" />
+<meta property="og:url" content="https://yourgame.example.com" />
+<meta property="og:type" content="website" />
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="💣 Bombadan Qoch! - Mini Game" />
+<meta name="twitter:description" content="Qiziqarli va interaktiv bomba o‘yini! Har 5 daqiqada bomba o‘zgaradi!" />
+<meta name="twitter:image" content="https://example.com/your-thumbnail.jpg" />
+
+<!-- Favicon (brauzer ichidagi belgi) -->
+<link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .explode {
+      animation: explode 0.7s forwards;
+    }
+    @keyframes explode {
+      to {
+        transform: translate(var(--tx), var(--ty)) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen space-y-6">
+
+  <h1 class="text-3xl font-bold">💣 Bombadan Qoch!</h1>
+
+  <div id="timer" class="text-lg text-yellow-400">O'yin vaqti: 00:00</div>
+
+  <div id="game-container" class="grid grid-cols-5 grid-rows-5 gap-1 w-[320px] h-[320px]"></div>
+
+  <div class="flex flex-wrap gap-4 mt-4">
+    <button id="restart-btn" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold">
+      🔄 Qayta o‘ynash
+    </button>
+    <button id="guide-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white font-semibold">
+      📘 Qo‘llanma
+    </button>
+    <a href="https://t.me/sardorbeksobirjonov" target="_blank"
+      class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-white font-semibold">🧑‍💻 Admin</a>
+    <a href="https://t.me/webstormers" target="_blank"
+      class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded text-white font-semibold">📢 Kanal</a>
+  </div>
+
+  <!-- Qo‘llanma Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+    <div class="bg-white text-black rounded-xl p-6 w-[90%] max-w-md shadow-xl space-y-4">
+      <h2 class="text-xl font-bold">📘 O‘yin Qo‘llanmasi</h2>
+      <ul class="list-disc list-inside space-y-1 text-sm">
+        <li>25 ta katak ichida 5 ta bomba yashiringan.</li>
+        <li>Agar siz bomba bo‘lmagan katakka bossangiz, yashil bo‘ladi.</li>
+        <li>Agar bombani bossangiz, portlaydi va o‘yin tugaydi.</li>
+        <li>Bombalar har 5 daqiqada joyini o‘zgartiradi.</li>
+        <li>“Qayta o‘ynash” tugmasi bilan o‘yinni yangidan boshlang.</li>
+      </ul>
+      <button id="close-modal" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full">
+        Yopish
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById("game-container");
+const restartBtn = document.getElementById("restart-btn");
+const guideBtn = document.getElementById("guide-btn");
+const timerEl = document.getElementById("timer");
+const modal = document.getElementById("modal");
+const closeModal = document.getElementById("close-modal");
+
+const gridSize = 5;
+const totalCells = gridSize * gridSize;
+const bombCount = 5;
+
+let bombs = new Set();
+let clickedCells = new Set();
+let isGameOver = false;
+let bombChangeInterval;
+let timerInterval;
+let startTime;
+
+function formatTime(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const secs = String(totalSeconds % 60).padStart(2, "0");
+  return `${mins}:${secs}`;
+}
+
+function initGame() {
+  container.innerHTML = "";
+  bombs.clear();
+  clickedCells.clear();
+  isGameOver = false;
+  restartBtn.classList.add("hidden");
+
+  startTime = Date.now();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (!isGameOver) {
+      const elapsed = Date.now() - startTime;
+      timerEl.textContent = "O'yin vaqti: " + formatTime(elapsed);
+    }
+  }, 1000);
+
+  placeBombs();
+
+  for (let i = 0; i < totalCells; i++) {
+    const cell = document.createElement("div");
+    cell.classList.add(
+      "bg-gray-700",
+      "rounded",
+      "cursor-pointer",
+      "transition-colors",
+      "duration-300",
+      "flex",
+      "items-center",
+      "justify-center"
+    );
+    cell.style.width = "60px";
+    cell.style.height = "60px";
+    cell.dataset.index = i;
+
+    cell.addEventListener("click", () => {
+      if (isGameOver || clickedCells.has(i)) return;
+
+      if (bombs.has(i)) {
+        explode(cell);
+      } else {
+        cell.classList.remove("bg-gray-700");
+        cell.classList.add("bg-green-500");
+        clickedCells.add(i);
+      }
+    });
+
+    container.appendChild(cell);
+  }
+
+  clearInterval(bombChangeInterval);
+  bombChangeInterval = setInterval(() => {
+    if (!isGameOver) {
+      placeBombs();
+      console.log("Bombalar joyi yangilandi");
+    }
+  }, 300000); // 5 daqiqa
+}
+
+function placeBombs() {
+  bombs.clear();
+  while (bombs.size < bombCount) {
+    const index = Math.floor(Math.random() * totalCells);
+    if (!clickedCells.has(index)) {
+      bombs.add(index);
+    }
+  }
+}
+
+function explode(cell) {
+  isGameOver = true;
+  restartBtn.classList.remove("hidden");
+  clearInterval(timerInterval);
+  clearInterval(bombChangeInterval);
+
+  const allCells = container.querySelectorAll("div");
+  allCells.forEach((c) => {
+    if (c === cell) {
+      c.classList.remove("bg-gray-700");
+      c.classList.add("bg-red-600");
+    }
+
+    const tx = (Math.random() - 0.5) * 300 + "px";
+    const ty = (Math.random() - 0.5) * 300 + "px";
+    c.style.setProperty("--tx", tx);
+    c.style.setProperty("--ty", ty);
+    c.classList.add("explode");
+  });
+}
+
+restartBtn.addEventListener("click", () => {
+  location.reload(); // to‘liq qayta ishga tushiradi
+});
+
+guideBtn.addEventListener("click", () => {
+  modal.classList.remove("hidden");
+  modal.classList.add("flex");
+});
+
+closeModal.addEventListener("click", () => {
+  modal.classList.add("hidden");
+  modal.classList.remove("flex");
+});
+
+initGame();
+
+  </script>
+</body>
+</html>
